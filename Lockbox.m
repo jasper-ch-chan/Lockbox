@@ -330,4 +330,9 @@ static NSString *_defaultKeyPrefix = nil;
     return [_lockBox dateForKey:key];
 }
 
++ (NSString *)encryptionKeyForUser:(NSString*)userName forKey:(NSString *)key
+{
+    NSDictionary*encryptionKeyDict = [self dictionaryForKey:key];
+    return [encryptionKeyDict objectForKey:userName];
+}
 @end
