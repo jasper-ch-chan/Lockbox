@@ -67,4 +67,20 @@
 + (NSDate *)dateForKey:(NSString *)key;
 
 + (NSString *)encryptionKeyForUser:(NSString*)userName forKey:(NSString *)key;
+
+// Save to Lockbox
++ (void)saveUserId:(NSString *)userId forUsername:(NSString *)username;
++ (void)saveCoreDataEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username;
++ (void)saveUserFolderGUID:(NSString *)folderGUID forUsername:(NSString *)username;
++ (void)saveUserHashPassword:(NSString *)hashPassword forUsername:(NSString *)username;
++ (void)saveUserFileEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username;
+
+// Get from Lockbox
++ (void)getUserIdforUsername:(NSString *)username;
++ (void)getCoreDataEncryptionKeyforUsername:(NSString *)username;
++ (void)getUserFolderGUIDforUsername:(NSString *)username;
++ (void)getUserHashPasswordforUsername:(NSString *)username;
++ (void)getUserFileEncryptionKeyforUsername:(NSString *)username;
+
+
 @end
