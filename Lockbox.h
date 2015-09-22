@@ -67,9 +67,11 @@
 + (NSDate *)dateForKey:(NSString *)key;
 
 // Save to Lockbox
++ (void)saveLastUser:(NSString *)lastUser;
 + (void)saveUserId:(NSString *)userId forUsername:(NSString *)username;
 + (void)saveFirstName:(NSString *)firstName forUsername:(NSString *)username;
 + (void)saveLastName:(NSString *)lastName forUsername:(NSString *)username;
++ (void)saveBadgeNumber:(NSString *)badgeNumber forUsername:(NSString *)username;
 + (void)saveOrganizationName:(NSString *)organizationName forUsername:(NSString *)username;
 + (void)saveOrganizationState:(NSString *)organizationState forUsername:(NSString *)username;
 + (void)saveOrganizationCountry:(NSString *)organizationCountry forUsername:(NSString *)username;
@@ -80,12 +82,15 @@
 + (void)saveUserHashPassword:(NSString *)hashPassword forUsername:(NSString *)username;
 + (void)saveUserFileEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username;
 + (void)saveUserPassword:(NSString *)userPassword forUsername:(NSString *)username;
++ (void)saveHashedAppUUID:(NSString *)hashedUUID;
 
 // Get from Lockbox
++ (NSString *)getLastUser;
 + (NSString *)getUserIdforUsername:(NSString *)username;
 + (NSString *)getFirstNameforUsername:(NSString *)username;
 + (NSString *)getLastNameforUsername:(NSString *)username;
 + (NSString *)getFullNameforUsername:(NSString *)username;
++ (NSString *)getBadgeNumberForUsername:(NSString *)username;
 + (NSString *)getOrganizationNameforUsername:(NSString *)username;
 + (NSString *)getOrganizationStateforUsername:(NSString *)username;
 + (NSString *)getOrganizationCountryforUsername:(NSString *)username;
@@ -96,7 +101,12 @@
 + (NSString *)getUserHashPasswordforUsername:(NSString *)username;
 + (NSString *)getUserFileEncryptionKeyforUsername:(NSString *)username;
 + (NSString *)getUserPasswordforUsername:(NSString *)username;
++ (NSUInteger)getActiveUserCount;
++ (NSString *)getHashedAppUUID;
 
 // Clean Lockbox
 + (void)cleanKeyChain;
+
+// Logging Lockbox support
++ (void)dumpLockboxInfoForUsername:(NSString *)username;
 @end

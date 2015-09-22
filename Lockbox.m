@@ -28,6 +28,7 @@
 #define k_userIdKeyName @"userId"
 #define k_firstNameKeyName @"firstName"
 #define k_lastNameKeyName @"lastName"
+#define k_badgeNumberKeyName @"badgeNumber"
 #define k_organizationNameKeyName @"organizationName"
 #define k_organizationStateKeyName @"organizationState"
 #define k_organizationCountryKeyName @"organizationCountry"
@@ -35,9 +36,11 @@
 #define k_organizationAddressKeyName @"organizationAddress"
 #define k_userFolderGUIDKeyName @"userFolderGUID"
 #define k_userCoreDataEncryptionKeyName @"coreDataEncryptionKey"
-#define k_userFileEncryptionKey @"fileEncryptionKey"
-#define k_userHashPassword @"userHashPassword"
-#define k_userPassword @"userPassword"
+#define k_userFileEncryptionKeyName @"fileEncryptionKey"
+#define k_userHashPasswordKeyName @"userHashPassword"
+#define k_userPasswordKeyName @"userPassword"
+#define k_appHashedUUIDKeyName @"appHashedUUID"
+#define k_appLastUser @"appLastUser"
 
 static Lockbox *_lockBox = nil;
 static NSString *_defaultKeyPrefix = nil;
@@ -47,11 +50,11 @@ static NSString *_defaultKeyPrefix = nil;
 @end
 
 @interface UserAccountInfo : NSDictionary
-@property (nonatomic, copy) NSString *userId;
-@property (nonatomic, copy) NSString *userFolderGUID;
-@property (nonatomic, copy) NSString *userCoreDataEncryptionKey;
-@property (nonatomic, copy) NSString *userFileEncryptionKey;
-@property (nonatomic, copy) NSString *userHashPassword;
+@property (atomic, copy) NSString *userId;
+@property (atomic, copy) NSString *userFolderGUID;
+@property (atomic, copy) NSString *userCoreDataEncryptionKey;
+@property (atomic, copy) NSString *userFileEncryptionKey;
+@property (atomic, copy) NSString *userHashPassword;
 @end
 
 @implementation Lockbox
@@ -135,6 +138,7 @@ static NSString *_defaultKeyPrefix = nil;
     NSString *hierKey = [self _hierarchicalKey:key];
 
     // If the object is nil, delete the item
+
     if (!obj)
     {
         NSMutableDictionary *query = [self _query];
@@ -289,6 +293,8 @@ static NSString *_defaultKeyPrefix = nil;
 
 - (BOOL)setDictionary:(NSDictionary *)value forKey:(NSString *)key accessibility:(CFTypeRef)accessibility
 {
+// DDLogVerbose(@"%@:%@", THIS_FILE, THIS_METHOD);
+
     NSMutableArray *keysAndValues = [NSMutableArray arrayWithArray:value.allKeys];
     [keysAndValues addObjectsFromArray:value.allValues];
 
@@ -461,6 +467,13 @@ static NSString *_defaultKeyPrefix = nil;
 
 #pragma mark self added in code for ze projects
 
++ (void)saveLastUser:(NSString *)lastUser
+{
+    [self setString:lastUser forKey:k_appLastUser];
+}
+
+
+
 + (void)saveUserId:(NSString *)userId forUsername:(NSString *)username
 {
     [self saveToLockbox:userId forUsername:username keyName:k_userIdKeyName];
@@ -478,6 +491,13 @@ static NSString *_defaultKeyPrefix = nil;
 + (void)saveLastName:(NSString *)lastName forUsername:(NSString *)username
 {
     [self saveToLockbox:lastName forUsername:username keyName:k_lastNameKeyName];
+}
+
+
+
++ (void)saveBadgeNumber:(NSString *)badgeNumber forUsername:(NSString *)username
+{
+    [self saveToLockbox:badgeNumber forUsername:username keyName:k_badgeNumberKeyName];
 }
 
 
@@ -533,65 +553,103 @@ static NSString *_defaultKeyPrefix = nil;
 
 + (void)saveUserHashPassword:(NSString *)hashPassword forUsername:(NSString *)username
 {
-    [self saveToLockbox:hashPassword forUsername:username keyName:k_userHashPassword];
+    [self saveToLockbox:hashPassword forUsername:username keyName:k_userHashPasswordKeyName];
 }
 
 
 
 + (void)saveUserFileEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username
 {
-    [self saveToLockbox:encryptionKey forUsername:username keyName:k_userFileEncryptionKey];
+    [self saveToLockbox:encryptionKey forUsername:username keyName:k_userFileEncryptionKeyName];
 }
+
+
 
 + (void)saveUserPassword:(NSString *)userPassword forUsername:(NSString *)username
 {
-    [self saveToLockbox:userPassword forUsername:username keyName:k_userPassword];
+    [self saveToLockbox:userPassword forUsername:username keyName:k_userPasswordKeyName];
 }
+
+
+
++ (void)saveHashedAppUUID:(NSString *)hashedUUID
+{
+    [self setString:hashedUUID forKey:k_appHashedUUIDKeyName];
+}
+
+
 
 + (void)saveToLockbox:(NSString *)value forUsername:(NSString *)username keyName:(NSString *)keyName
 {
-    NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
-    if (allUserAccountDict)
+    @synchronized(self) // thread safety support
     {
-        NSString *hashUsername = [allUserAccountDict objectForKey:username];
-        if (hashUsername)
-        {
-            /*Found it*/
-            NSMutableDictionary *mutaUserDict = [[self dictionaryForKey:hashUsername] mutableCopy];
-            [mutaUserDict setObject:value forKey:keyName];
+// DDLogInfo(@"%@: saveToLockbox:\"%@\" forUsername:\"%@\" keyName:\"%@\"", THIS_FILE, value, username, keyName);
 
-            [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaUserDict] forKey:hashUsername];
+        NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
+        if (allUserAccountDict)
+        {
+            NSString *hashUsername = [allUserAccountDict objectForKey:username];
+            if (hashUsername)
+            {
+                /*Found it*/
+                NSMutableDictionary *mutaUserDict = [[self dictionaryForKey:hashUsername] mutableCopy];
+
+                if (mutaUserDict)
+                {
+                    [mutaUserDict setObject:value forKey:keyName];
+                    [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaUserDict] forKey:hashUsername];
+                }
+                else
+                {
+                    DDLogWarn(@"%@:%@ - mutaUserDict is nil. We will not save %@ for %@ for user %@", THIS_FILE, THIS_METHOD, value, keyName, username);
+                }
+            }
+            else
+            {
+                /*No record of it*/
+
+                // Update userDict to include the new user's username
+                NSString *hashUsername = [self hashForUsername:username];
+                NSMutableDictionary *mutaAllUserAccountDict = [allUserAccountDict mutableCopy];
+                [mutaAllUserAccountDict setObject:hashUsername forKey:username];
+                [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaAllUserAccountDict] forKey:k_userAccountInfoKey];
+
+                // Create new dictionary and add object into user's own dict
+                NSMutableDictionary *mutaUserDict = [[NSMutableDictionary alloc] init];
+                if (mutaUserDict)
+                {
+                    [mutaUserDict setObject:value forKey:keyName];
+                    [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaUserDict] forKey:hashUsername];
+                }
+                else
+                {
+                    DDLogWarn(@"%@:%@ - mutaUserDict is nil. We will not save %@ for %@ for user %@", THIS_FILE, THIS_METHOD, value, keyName, username);
+                }
+            }
         }
         else
         {
-            /*No record of it*/
-
-            // Update userDict to include the new user's username
+            /*Does not exist*/
+            // This is the actual dictionary that is storing the information
             NSString *hashUsername = [self hashForUsername:username];
-            NSMutableDictionary *mutaAllUserAccountDict = [allUserAccountDict mutableCopy];
-            [mutaAllUserAccountDict setObject:hashUsername forKey:username];
-            [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaAllUserAccountDict] forKey:k_userAccountInfoKey];
+            NSMutableDictionary *hashUsernameDict = [[NSMutableDictionary alloc] init];
+            [hashUsernameDict setObject:hashUsername forKey:username];
+            [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:hashUsernameDict] forKey:k_userAccountInfoKey];
 
-            // Create new dictionary and add object into user's own dict
-            NSMutableDictionary *mutaUserDict = [[NSMutableDictionary alloc] init];
-            [mutaUserDict setObject:value forKey:keyName];
-            [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:mutaUserDict] forKey:hashUsername];
+            // This is the dictionary holding a mapping to all users
+            NSMutableDictionary *userAccountDict = [[NSMutableDictionary alloc] init];
+            [userAccountDict setObject:value forKey:keyName];
+
+            [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:userAccountDict] forKey:hashUsername];
         }
     }
-    else
-    {
-        /*Does not exist*/
-        // This is the actual dictionary that is storing the information
-        NSString *hashUsername = [self hashForUsername:username];
-        NSMutableDictionary *hashUsernameDict = [[NSMutableDictionary alloc] init];
-        [hashUsernameDict setObject:hashUsername forKey:username];
-        [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:hashUsernameDict] forKey:k_userAccountInfoKey];
+}
 
-        // This is the dictionary holding a mapping to all users
-        NSMutableDictionary *userAccountDict = [[NSMutableDictionary alloc] init];
-        [userAccountDict setObject:value forKey:keyName];
-        [Lockbox setDictionary:[NSDictionary dictionaryWithDictionary:userAccountDict] forKey:hashUsername];
-    }
+
+
++ (NSString *)getLastUser
+{
+    return [self stringForKey:k_appLastUser];
 }
 
 
@@ -621,7 +679,15 @@ static NSString *_defaultKeyPrefix = nil;
 {
     NSString *firstName = [self readFromLockboxForUsername:username keyName:k_firstNameKeyName];
     NSString *lastName = [self readFromLockboxForUsername:username keyName:k_lastNameKeyName];
+
     return [NSString stringWithFormat:@"%@ %@", firstName, lastName];
+}
+
+
+
++ (NSString *)getBadgeNumberForUsername:(NSString *)username
+{
+    return [self readFromLockboxForUsername:username keyName:k_badgeNumberKeyName];
 }
 
 
@@ -677,48 +743,65 @@ static NSString *_defaultKeyPrefix = nil;
 
 + (NSString *)getUserHashPasswordforUsername:(NSString *)username
 {
-    return [self readFromLockboxForUsername:username keyName:k_userHashPassword];
+    return [self readFromLockboxForUsername:username keyName:k_userHashPasswordKeyName];
 }
 
 
 
 + (NSString *)getUserFileEncryptionKeyforUsername:(NSString *)username
 {
-    return [self readFromLockboxForUsername:username keyName:k_userFileEncryptionKey];
+    return [self readFromLockboxForUsername:username keyName:k_userFileEncryptionKeyName];
 }
 
 
 
 + (NSString *)getUserPasswordforUsername:(NSString *)username
 {
-    return [self readFromLockboxForUsername:username keyName:k_userPassword];
+    return [self readFromLockboxForUsername:username keyName:k_userPasswordKeyName];
+}
+
+
+
++ (NSUInteger)getActiveUserCount
+{
+    return [self dictionaryForKey:k_userAccountInfoKey].count;
+}
+
+
+
++ (NSString *)getHashedAppUUID
+{
+    return [self stringForKey:k_appHashedUUIDKeyName];
 }
 
 
 
 + (NSString *)readFromLockboxForUsername:(NSString *)username keyName:(NSString *)keyName
 {
-    NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
-    if (allUserAccountDict)
+    @synchronized (self)
     {
-        NSString *hashedUsername = [allUserAccountDict objectForKey:username];
-        if (hashedUsername)
+        NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
+        if (allUserAccountDict)
         {
-            /*Found it*/
-            NSDictionary *userAccountDict = [self dictionaryForKey:hashedUsername];
-            return [userAccountDict objectForKey:keyName];
+            NSString *hashedUsername = [allUserAccountDict objectForKey:username];
+            if (hashedUsername)
+            {
+                /*Found it*/
+                NSDictionary *userAccountDict = [self dictionaryForKey:hashedUsername];
+                return [userAccountDict objectForKey:keyName];
+            }
+            else
+            {
+                /*No record of it*/
+                return nil;
+            }
         }
         else
         {
-            /*No record of it*/
+            /*Does not exist*/
+            // This is the actual dictionary that is storing the information
             return nil;
         }
-    }
-    else
-    {
-        /*Does not exist*/
-        // This is the actual dictionary that is storing the information
-        return nil;
     }
 }
 
@@ -736,9 +819,7 @@ static NSString *_defaultKeyPrefix = nil;
         // SHA-1 hash has been calculated and stored in 'digest'.
         NSMutableString *output = [NSMutableString stringWithCapacity:CC_SHA1_DIGEST_LENGTH * 2];
 
-        for (int i = 0;
-             i < CC_SHA1_DIGEST_LENGTH;
-             i++)
+        for (int i=0; i < CC_SHA1_DIGEST_LENGTH; i++)
         {
             [output appendFormat:@"%02x", digest[i]];
         }
@@ -763,6 +844,68 @@ static NSString *_defaultKeyPrefix = nil;
     }
 
     [Lockbox setDictionary:nil forKey:k_userAccountInfoKey];
+    [Lockbox setString:nil forKey:k_appLastUser];
+}
+
+
+
++ (void)dumpLockboxInfoForUsername:(NSString *)username
+{
+    DDLogInfo(@"%@:%@ \"%@\"", THIS_FILE, THIS_METHOD, username);
+
+    NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
+    if (allUserAccountDict)
+    {
+        NSString *hashedUsername = [allUserAccountDict objectForKey:username];
+        if (hashedUsername)
+        {
+            /*Found it*/
+            NSDictionary *userAccountDict = [self dictionaryForKey:hashedUsername];
+            DDLogInfo(@"%@:%@ Lockbox Contents \n %@", THIS_FILE, THIS_METHOD, userAccountDict);
+        }
+        else
+        {
+            /*No record of it*/
+            DDLogError(@"%@:%@ - Unable to find Lockbox for username = %@", THIS_FILE, THIS_METHOD, username);
+        }
+    }
+    else
+    {
+        /*Does not exist*/
+        // This is the actual dictionary that is storing the information
+        DDLogError(@"%@:%@ - Unable to find Lockbox for username = %@", THIS_FILE, THIS_METHOD, username);
+    }
+
+/*
+    NSMutableDictionary *query = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                  (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnAttributes,
+                                  (__bridge id)kSecMatchLimitAll, (__bridge id)kSecMatchLimit,
+                                  nil];
+    NSArray *secItemClasses = [NSArray arrayWithObjects:
+                               (__bridge id)kSecAttrDescription,
+                               (__bridge id)kSecAttrGeneric,
+                               (__bridge id)kSecClassGenericPassword,
+                               (__bridge id)kSecClassInternetPassword,
+                               (__bridge id)kSecClassCertificate,
+                               (__bridge id)kSecClassKey,
+                               (__bridge id)kSecClassIdentity,
+                               nil];
+
+    for (id secItemClass in secItemClasses)
+    {
+        [query setObject:secItemClass forKey:(__bridge id)kSecClass];
+
+        CFTypeRef result = NULL;
+        SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
+
+        DDLogInfo(@"%@%@ - %@", THIS_FILE, THIS_METHOD, (__bridge id)result);
+
+        if (result != NULL)
+        {
+            CFRelease(result);
+        }
+    }
+ */
 }
 
 
