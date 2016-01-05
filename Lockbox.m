@@ -161,16 +161,13 @@ static NSString *_defaultKeyPrefix = nil;
             _lastStatus = SecItemAdd((LOCKBOX_DICTREF) dict, NULL);
         }
     }
-    if (_lastStatus != errSecSuccess)
-        DLog(@"SecItemAdd failed for key %@: %d", hierKey, (int)_lastStatus);
-    return (_lastStatus == errSecSuccess);
 
-    if (status != errSecSuccess)
+    if (_lastStatus != errSecSuccess)
     {
-        DLog(@"SecItemAdd failed for key %@: %d", hierKey, (int)status);
+        DLog(@"SecItemAdd failed for key %@: %d", hierKey, (int)_lastStatus);
     }
 
-    return (status == errSecSuccess);
+    return (_lastStatus == errSecSuccess);
 }
 
 
