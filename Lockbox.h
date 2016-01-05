@@ -5,6 +5,8 @@
 // Copyright (c) 2012 Hawk iMedia. All rights reserved.
 //
 
+#import <Foundation/Foundation.h>
+
 @interface Lockbox : NSObject
 
 #ifdef DEBUG
@@ -12,9 +14,11 @@
 @property (strong, nonatomic, readonly) NSString *keyPrefix;
 #endif
 
+@property (assign, nonatomic, readonly) OSStatus lastStatus;
+
 // When the default key prefix (your app's bundle id) is not sufficient, instantiate your own
 // instance of Lockbox specifying your own key prefix, and use the appropriate instance methods
-// to store and retreive keychain data. You can also instantiate your own instance and use the
+// to store and retrieve keychain data. You can also instantiate your own instance and use the
 // default key prefix simply by calling [[Lockbox alloc] init];
 - (instancetype)initWithKeyPrefix:(NSString *)keyPrefix;
 
