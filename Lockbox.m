@@ -7,6 +7,7 @@
 
 #import "Lockbox.h"
 #import <Security/Security.h>
+#include <CommonCrypto/CommonDigest.h>
 
 // Define DLog if user hasn't already defined his own implementation
 #ifndef DLog
@@ -651,7 +652,7 @@ static NSString *_defaultKeyPrefix = nil;
 
 
 
-+ (void)saveRealmEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username
++ (void)saveRealmEncryptionKey:(NSData *)encryptionKey forUsername:(NSString *)username
 {
     [self saveToLockbox:encryptionKey forUsername:username keyName:k_userRealmEncryptionKeyName];
 }
@@ -693,7 +694,7 @@ static NSString *_defaultKeyPrefix = nil;
 
 
 
-+ (void)saveToLockbox:(NSString *)value forUsername:(NSString *)username keyName:(NSString *)keyName
++ (void)saveToLockbox:(id<NSSecureCoding>)value forUsername:(NSString *)username keyName:(NSString *)keyName
 {
     @synchronized(self) // thread safety support
     {
@@ -841,7 +842,7 @@ static NSString *_defaultKeyPrefix = nil;
 
 
 
-+ (NSString *)getRealmEncryptionKeyforUsername:(NSString *)username
++ (NSData *)getRealmEncryptionKeyforUsername:(NSString *)username
 {
     return [self readFromLockboxForUsername:username keyName:k_userRealmEncryptionKeyName];
 }
@@ -878,19 +879,19 @@ static NSString *_defaultKeyPrefix = nil;
 
 + (NSUInteger)getActiveUserCount
 {
-    return [self dictionaryForKey:k_userAccountInfoKey].count;
+    return ((NSDictionary *)([self unarchiveObjectForKey:k_userAccountInfoKey])).count;
 }
 
 
 
 + (NSString *)getHashedAppUUID
 {
-    return [self stringForKey:k_appHashedUUIDKeyName];
+    return [self unarchiveObjectForKey:k_appHashedUUIDKeyName];
 }
 
 
 
-+ (NSString *)readFromLockboxForUsername:(NSString *)username keyName:(NSString *)keyName
++ (id<NSSecureCoding>)readFromLockboxForUsername:(NSString *)username keyName:(NSString *)keyName
 {
     @synchronized (self)
     {
@@ -950,7 +951,7 @@ static NSString *_defaultKeyPrefix = nil;
 
 + (void)cleanKeyChain
 {
-    NSDictionary *allUserAccountDict = [self dictionaryForKey:k_userAccountInfoKey];
+    NSDictionary *allUserAccountDict = [self unarchiveObjectForKey:k_userAccountInfoKey];
 
     for (NSString *hashUsername in allUserAccountDict.allValues)
     {
@@ -976,7 +977,7 @@ static NSString *_defaultKeyPrefix = nil;
             /*Found it*/
             NSDictionary *userAccountDict = [self unarchiveObjectForKey:hashedUsername];
 
-            DDLogInfo(@"%@:%@ Realm Encryption Key: \"%@\"", THIS_FILE, THIS_METHOD, [RealmController hexadecimalString:[RealmController convertUUIDTo64ByteKey:[userAccountDict objectForKey:k_userRealmEncryptionKeyName]]]);
+            DDLogInfo(@"%@:%@ Realm Encryption Key: \"%@\"", THIS_FILE, THIS_METHOD, [RealmController hexadecimalString:[[Prefs sharedInstance] getRealmEncryptionKey]]);
             DDLogInfo(@"%@:%@ fileEncryptionKey = %@", THIS_FILE, THIS_METHOD, userAccountDict[@"fileEncryptionKey"]);
             DDLogInfo(@"%@:%@ userFolderGUID = %@", THIS_FILE, THIS_METHOD, userAccountDict[@"userFolderGUID"]);
             DDLogInfo(@"%@:%@ userHashPassword = %@", THIS_FILE, THIS_METHOD, userAccountDict[@"userHashPassword"]);

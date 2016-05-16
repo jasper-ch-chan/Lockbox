@@ -90,7 +90,7 @@
 + (void)saveOrganizationCountry:(NSString *)organizationCountry forUsername:(NSString *)username;
 + (void)saveOrganizationCity:(NSString *)organizationCity forUsername:(NSString *)username;
 + (void)saveOrganizationAddress:(NSString *)organizationAddress forUsername:(NSString *)username;
-+ (void)saveRealmEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username;
++ (void)saveRealmEncryptionKey:(NSData *)encryptionKey forUsername:(NSString *)username;
 + (void)saveUserFolderGUID:(NSString *)folderGUID forUsername:(NSString *)username;
 + (void)saveUserHashPassword:(NSString *)hashPassword forUsername:(NSString *)username;
 + (void)saveUserFileEncryptionKey:(NSString *)encryptionKey forUsername:(NSString *)username;
@@ -109,7 +109,7 @@
 + (NSString *)getOrganizationCountryforUsername:(NSString *)username;
 + (NSString *)getOrganizationCityforUsername:(NSString *)username;
 + (NSString *)getOrganizationAddressforUsername:(NSString *)username;
-+ (NSString *)getRealmEncryptionKeyforUsername:(NSString *)username;
++ (NSData *)getRealmEncryptionKeyforUsername:(NSString *)username;
 + (NSString *)getUserFolderGUIDforUsername:(NSString *)username;
 + (NSString *)getUserHashPasswordforUsername:(NSString *)username;
 + (NSString *)getUserFileEncryptionKeyforUsername:(NSString *)username;
